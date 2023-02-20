@@ -1,45 +1,58 @@
 from flask import Flask
 from flask import jsonify
 from flask import request
+
 from methods import Token, Restricted
 
 app = Flask(__name__)
 login = Token()
 protected = Restricted()
 
-
 # Just a health check
 @app.route("/")
 def url_root():
     return "OK"
-
 
 # Just a health check
 @app.route("/_health")
 def url_health():
     return "OK"
 
-
 # e.g. http://127.0.0.1:8000/login
 @app.route("/login", methods=['POST'])
 def url_login():
+    # Retrieve username and password from request form data
     username = request.form['username']
     password = request.form['password']
-    res = {
-        "data": login.generate_token(username, password)
-    }
-    return jsonify(res)
 
+    # Generate a token using the Token class, passing in the username and password
+    token = login.generate_token(username, password)
 
-# # e.g. http://127.0.0.1:8000/protected
+    # If the token is not None, return it in a JSON response
+    if token:
+        res = {
+            "data": token
+        }
+        return jsonify(res)
+
+    # If the token is None, return a 403 Forbidden error
+    else:
+        return {"error": "Forbidden"}, 403
+
+#  e.g. http://127.0.0.1:8000/protected
 @app.route("/protected")
 def url_protected():
+    # Retrieve authorization token from request headers
     auth_token = request.headers.get('Authorization')
+
+    # Use the Restricted class to access protected data with the authorization token
+    data = protected.access_data(auth_token)
+
+    # Return the protected data in a JSON response
     res = {
-        "data": protected.access_data(auth_token)
+        "data": data
     }
     return jsonify(res)
-
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)
